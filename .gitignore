@@ -1,0 +1,19 @@
+# Build outputs
+bin/
+obj/
+publish/
+
+# IDE / editor
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+
+# Local working / diagnostics
+.workbuddy/
+*.log
+
+# OS
+Thumbs.db
+Desktop.ini

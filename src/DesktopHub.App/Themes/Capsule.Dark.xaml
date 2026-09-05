@@ -1,0 +1,25 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- 深色主题:亚克力着色 0xCC202020(见 AcrylicHelper.DarkGradientColor)。
+         内容层不允许不透明背景,衬底画刷 Alpha 均 ≤ 0x40。 -->
+
+    <!-- 胶囊微弱压暗衬底(叠在亚克力之上、内容之下) -->
+    <SolidColorBrush x:Key="CapsuleTintBrush" Color="#33191D24"/>
+    <!-- 1px 半透明白色高光描边 -->
+    <SolidColorBrush x:Key="CapsuleStrokeBrush" Color="#40FFFFFF"/>
+    <!-- 主文字(时间/标题/图标名) -->
+    <SolidColorBrush x:Key="PrimaryTextBrush" Color="#EAEAF0"/>
+    <!-- 次要文字(分组名/空态提示) -->
+    <SolidColorBrush x:Key="SecondaryTextBrush" Color="#9A9AA8"/>
+    <!-- 悬停衬底 -->
+    <SolidColorBrush x:Key="HoverOverlayBrush" Color="#22FFFFFF"/>
+    <!-- 分隔线 -->
+    <SolidColorBrush x:Key="DividerBrush" Color="#33FFFFFF"/>
+
+    <!-- ↓↓ 常规窗口(设置页)底色/卡片/控件色,随主题切换经 DynamicResource 更新 -->
+    <SolidColorBrush x:Key="WindowBackgroundBrush" Color="#FF1B1B21"/>
+    <SolidColorBrush x:Key="CardBrush" Color="#FF24242B"/>
+    <SolidColorBrush x:Key="AccentBrush" Color="#FF6FB1FF"/>
+    <SolidColorBrush x:Key="SwitchOffBrush" Color="#FF3A3A44"/>
+    <SolidColorBrush x:Key="NavActiveBrush" Color="#FF32405C"/>
+</ResourceDictionary>

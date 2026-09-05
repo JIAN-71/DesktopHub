@@ -1,0 +1,25 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- 浅色主题:亚克力着色 0xBFFFFFFF(见 AcrylicHelper.LightGradientColor)。
+         内容层不允许不透明背景,衬底画刷 Alpha 均 ≤ 0x40。 -->
+
+    <!-- 胶囊微弱提亮衬底 -->
+    <SolidColorBrush x:Key="CapsuleTintBrush" Color="#26FFFFFF"/>
+    <!-- 1px 半透明白色高光描边(浅底上依然提供轮廓高光) -->
+    <SolidColorBrush x:Key="CapsuleStrokeBrush" Color="#40FFFFFF"/>
+    <!-- 主文字 -->
+    <SolidColorBrush x:Key="PrimaryTextBrush" Color="#1C1C1E"/>
+    <!-- 次要文字 -->
+    <SolidColorBrush x:Key="SecondaryTextBrush" Color="#6E6E73"/>
+    <!-- 悬停衬底 -->
+    <SolidColorBrush x:Key="HoverOverlayBrush" Color="#1F000000"/>
+    <!-- 分隔线 -->
+    <SolidColorBrush x:Key="DividerBrush" Color="#33000000"/>
+
+    <!-- ↓↓ 常规窗口(设置页)底色/卡片/控件色,随主题切换经 DynamicResource 更新 -->
+    <SolidColorBrush x:Key="WindowBackgroundBrush" Color="#FFF2F2F6"/>
+    <SolidColorBrush x:Key="CardBrush" Color="#FFFFFFFF"/>
+    <SolidColorBrush x:Key="AccentBrush" Color="#FF3A76D6"/>
+    <SolidColorBrush x:Key="SwitchOffBrush" Color="#FFD9D9DE"/>
+    <SolidColorBrush x:Key="NavActiveBrush" Color="#FFDDE9FB"/>
+</ResourceDictionary>
