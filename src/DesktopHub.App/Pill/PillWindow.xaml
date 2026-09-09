@@ -207,7 +207,7 @@
                      有会话:圆形封面(40) + 歌名/歌手 + 播放/暂停;无会话:音符 + 「暂无音乐」占位。
                      MusicShift 供滚轮上/下滑的轮换动画做竖直位移。 -->
                 <Grid x:Name="MusicFrontPanel" Grid.Column="0" Background="Transparent"
-                      Visibility="Collapsed" Opacity="0" Cursor="Hand">
+                      Visibility="Collapsed" Opacity="0" Cursor="Hand" MouseLeftButtonDown="Capsule_MouseDown">
                     <Grid.RenderTransform>
                         <TranslateTransform x:Name="MusicShift"/>
                     </Grid.RenderTransform>
