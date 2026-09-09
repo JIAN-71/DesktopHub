@@ -47,7 +47,7 @@ public partial class App : Application
             showSettings: ShowSettings,
             exit: ExitApp);
 
-        var pill = new PillWindow(_controller);
+        var pill = new PillWindow(_controller, ShowSettings);
         pill.Show();
         MainWindow = pill;
 

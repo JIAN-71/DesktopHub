@@ -326,7 +326,6 @@
             <WrapPanel Grid.Row="1" HorizontalAlignment="Right" Margin="0,4,0,0">
                 <Button x:Name="RefreshNowButton" Content="重新扫描" Command="{Binding RefreshNowCommand}" Padding="14,6" MinWidth="88"/>
                 <Button x:Name="SaveButton" Content="保存并应用" Command="{Binding SaveCommand}" Padding="14,6" MinWidth="96" Margin="8,0,0,0" FontWeight="SemiBold"/>
-                <Button Content="关闭" Click="Close_Click" Padding="14,6" MinWidth="72" Margin="8,0,0,0"/>
             </WrapPanel>
         </Grid>
     </Grid>

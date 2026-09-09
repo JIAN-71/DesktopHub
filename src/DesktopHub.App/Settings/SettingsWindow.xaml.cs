@@ -22,6 +22,4 @@ public partial class SettingsWindow : Window
         _viewModel.Notified += message =>
             MessageBox.Show(this, message, "DesktopHub", MessageBoxButton.OK, MessageBoxImage.Information);
     }
-
-    private void Close_Click(object sender, RoutedEventArgs e) => Close();
 }

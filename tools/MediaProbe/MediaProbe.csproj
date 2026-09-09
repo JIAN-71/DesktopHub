@@ -6,7 +6,4 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
   </PropertyGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\..\src\DesktopHub.App\DesktopHub.App.csproj"/>
-  </ItemGroup>
 </Project>

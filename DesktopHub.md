@@ -54,6 +54,7 @@
 - **一键隐藏桌面图标**：胶囊面板与托盘菜单都有开关，调用系统"显示桌面图标"切换（等效桌面右键 → 查看），立即生效、随时切回。
 - **自动刷新**：监听用户/公共桌面文件变化，图标增删后面板自动更新；也可手动刷新。
 - **托盘常驻**：重新扫描 / 隐藏桌面图标 / 设置 / 退出；开机自启（HKCU Run 键）。
+- **音乐前置区**：悬停胶囊展开 [前置区 | 最近打开条]——存在媒体会话时前置区(表情球+时间的位置)切换为 **圆形专辑封面**(44) + 歌名/歌手 + 播放⇄暂停按钮(右侧)；无会话保持表情球+时间；鼠标离开收回小胶囊。
 - **外观设置（设置页即时生效）**：主题三态（跟随系统 / 深色 / 浅色，启动时按配置解析）、亚克力开关、不透明度滑杆（0~100%，拖动实时生效、停止 500ms 后落盘）；三项即时生效并自动保存，退出时兜底再固化一次。设置窗口自身也随主题换色（DynamicResource）。
 - **主题跟随**：`ThemeManager` 跟随系统深浅色（注册表 `AppsUseLightTheme`），亚克力着色同步切换；`AcrylicEnabled` / `AcrylicOpacity` 由设置状态驱动、改动即广播重设（详见 §10）。
 
@@ -129,7 +130,8 @@ cd /d/Project/DesktopHub
 | 类型 | 职责 |
 |---|---|
 | `App.xaml.cs` | 单实例（Mutex）、未处理异常兜底、组合根：组装 Controller/Tray/PillWindow；启动时 `ThemeManager.Initialize(this)`（先于窗口创建） |
-| `PillWindow` + `PillViewModel` | 胶囊窗：三态状态机（Small/Recent/Expanded）、三段式形变动画、跨屏跟随、时钟刷新（详见 §8） |
+| `PillWindow` + `PillViewModel` | 胶囊窗：三态状态机（Small/Recent/Expanded）、三段式形变动画、跨屏跟随、时钟刷新；悬停展开后存在媒体会话时前置区切换为音乐信息(封面/歌名/歌手/播放暂停)，后部最近打开条不变（详见 §8.5） |
+| `MediaSessionService` | 系统媒体检测：包装 SMTC（`GlobalSystemMediaTransportControlsSessionManager`，WinRT，Win10 1903+），聚合会话优先"播放中"，发布 歌名/歌手/播放态/专辑封面（事件经 IUiDispatcher 回 UI 线程），`TogglePlayPause` 切换播放（详见 §8.5） |
 | `DesktopController` | App 层门面：组合 `IconService`（扫描/缓存/刷新）与 `ConfigService`（配置/自启），持有桌面变化监听，广播 `StatusChanged`；负责"最近打开"的恢复（首次扫描后）与落盘（启动时）；UI 层只依赖本门面 |
 | `IconService` | 扫描编排 + 图标缓存：`GetGroups` 命中缓存快速路径，`RefreshAsync` 后台 STA 重扫后回 UI 广播，`Invalidate` 置脏清缓存；句柄在 `finally` 中 `Free` |
 | `IconCache` | 按 ParsingName 缓存冻结 `ImageSource`（`ConcurrentDictionary`，忽略大小写） |
@@ -193,8 +195,22 @@ cd /d/Project/DesktopHub
 8. **跨屏跟随**：`PillWindow.FollowCursorScreen`（挂时钟定时器每秒），非 Expanded 态下鼠标所在屏工作区与 `_workArea` 不同则 `AnimateMove` 平移到该屏顶部居中；`_workArea` 随之更新（`CenterLeft` 后续动画用新屏坐标）。`Completed` 同样先订阅后 `BeginAnimation`。
 9. **时钟刷新**：`_clockTimer` 每秒刷新时间文本（Small/Recent 态显示）。
 
-### 8.4 亚克力背景接线（当前，详见 §10）
+### 8.5 音乐前置区与滚轮切换（2026-09-05 深夜,改代码前必读）
 
+**交互**:**滚轮上滑**进入音乐前置区(240 宽不变)——存在媒体会话时显示 **圆形专辑封面(40) + 歌名/歌手 + 播放⇄暂停**(紧跟歌名右侧);无会话显示 音符+「暂无音乐」占位。**滚轮下滑**回到表情球+时间。**检测到音乐开始播放(暂停→播放 边沿)自动切入**音乐前置区。悬停展开的 [前置区 | 最近打开条] 中前置区跟随当前模式,后部最近打开条不受影响。**歌词功能已按用户要求移除**(LyricsService.cs 删除;LRCLIB 方案验证可用,恢复方式见本日工作日志)。
+
+改这里的代码前必须知道:
+
+1. **前置面板切换**:`_musicMode` 字段 + `SetFrontMode(bool)` 统一切换;`ApplyFrontMode` 按模式互斥可见性。所有收起路径(`CollapseToSmall`/`CollapseStageSettle`)与展开动画都必须走 `ApplyFrontMode`,不得硬编码 SmallPanel 可见性。**滚轮必须走 `HwndSource.AddHook`(`PillWndProcHook`)`**——WPF 丢弃非活动窗口的 `WM_MOUSEWHEEL`,悬停小组件从未被激活,MouseWheel 事件收不到;展开态在钩子里放行给图标列表。**重构时勿删 SourceInitialized 里的 AddHook 注册**(实测:钩子方法在而注册被删=滚轮静默失效)。
+2. **自动切入**:`OnNowPlayingForAutoSwitch` 只在 `IsPlaying` 的 false→true **边沿**触发(避免用户滚回时间后被周期事件反复拉回);展开态不打扰。
+3. **SMTC 线程模型**:WinRT 事件在线程池触发,`MediaSessionService` 全部经 `IUiDispatcher.BeginInvoke` 回 UI;会话属性读取存在竞态,整轮 try-catch 兜底。`StartAsync` 放后台(`StartMediaSessionsAsync`),失败静默空态。
+4. **TFM**:`DesktopHub.App` 与 `DesktopHub.App.Tests` 均为 `net8.0-windows10.0.19041.0`(WinRT 投影由 SDK 自带,离线可用);引用 App 的项目(含 tools/SettingsPreview)必须同 TFM,否则 NU1201。**启动/验证必须使用最新输出目录的 exe**(TFM 变更会换输出目录,旧目录残留过期 exe——本日"滚轮无效"假象的根源)。
+5. **封面**:`TryGetArtworkAsync` 从 `props.Thumbnail` 读流 → DataReader 取字节 → 冻结 BitmapImage,按 (Title,Artist) 缓存。**渲染用 `Image + EllipseGeometry.Clip`,不要用 `Ellipse.Fill=ImageBrush``**——Freezable 上的绑定在属性由 null 变非 null 时不更新(实测封面不出现)。
+6. **播放/暂停**:`TogglePlayPauseCommand` → `session.TryTogglePlayPauseAsync()`(SMTC 官方切换);图标按 `IsMusicPlaying` 切换(暂停三角/播放中双竖条)。
+7. **端到端验证工具**:tools/MediaProbe(SMTC 探针:注册真实会话模拟播放器——元数据/文件封面/时间轴推进/响应播放暂停,不发声,可验证自动切入/封面/歌名切换)+ tools/_hwnd.ps1 / capture-hwnd.ps1(PrintWindow 后台抓图)+ PostMessage 直投 WM_MOUSEWHEEL。
+8. **前置区轮换动画与按钮定位(2026-09-09)**:滚轮上/下滑切换不再是硬切——旧内容沿滚动方向滑出淡出、新内容自反向滑入(`AnimateFrontSwap`,260ms CubicEase);出/入场一律从当前值续接,中途反向滚动平滑折返,收尾由定时器固化终值并复位位移。**`MusicFrontPanel` 必须留在 `CapsuleBar` 第 0 列(固定 240 宽)**——放外层 Grid 会横跨整窗宽,播放/暂停按钮随悬停展开右移(用户截图返工);`SmallPanel`/`MusicFrontPanel` 各挂 `TranslateTransform`(`SmallShift`/`MusicShift`)供轮换动画使用。
+
+### 8.4 亚克力背景接线（当前，详见 §10）
 `PillWindow` 在 `SourceInitialized` 中获取 HWND 后调用 `AcrylicHelper`（去系统边框 → 挂背景 → 圆角裁剪），并订阅 `ThemeManager.ThemeChanged` / `AcrylicChanged` 同步重设；`PillBorder.SizeChanged` 触发 region 重裁。详见 §10 的"当前实现（代码为准）"。
 
 ## 9. 表情球（EmotionBall）
@@ -348,6 +364,20 @@ v1 普通窗口 + blurbehind（死黑 + 白边）→ v2 layered + 抓屏伪模�
 - **实测**（tools/SettingsPreview 独立预览器 + UIA/坐标交互）：主题切换即时换肤 ✓、滑杆 40%→61% 落盘 ✓、亚克力开关切换胶囊窗口模糊实时增减 ✓、配置恢复 ✓。
 - **开发工具**：`tools/SettingsPreview`——独立宿主复用真实 SettingsWindow/ThemeManager/DesktopController（无托盘/单实例），预览与调试设置 UI 用，不进 .sln。
 
+### Phase：音乐模式 + 滚轮切换（2026-09-05 深夜）
+- **需求**：悬停胶囊滚轮上滑进入音乐模式（时间上滚动画），检测到音乐播放显示歌名/歌手 + 播放/暂停按钮，滚轮下滑切回时间。
+- **TFM**：`net8.0-windows10.0.19041.0`（App + App.Tests + 预览器），WinRT SMTC 投影 SDK 自带、离线可用。
+- **服务**：`MediaSessionService` 包装 SMTC——会话优先"播放中"否则保持上一个；事件线程池触发经 `IUiDispatcher` 回 UI；`TryTogglePlayPauseAsync` 切换播放。
+- **滚轮交付的关键坑**：WPF 丢弃非活动窗口的 `WM_MOUSEWHEEL`，悬停小组件永远"非活动"——`MouseWheel` 事件方案必然失效（PostMessage/SendInput/SendMessage 直投 hwnd 也不行，消息在 WPF 输入管线被过滤）。**必须用 `HwndSource.AddHook` 公开钩子**（先于内置输入过滤器执行），见 §8.5。
+- **验证**：PostMessage 滚轮上滑 ×3 → 胶囊 240→412 DIP 音乐条（占位态）✓；下滑 ×3 → 回到 240 ✓；构建 0 警 0 错；测试 41 全绿（新增 SMTC 冒烟）。
+- **排障教训**：预览器 TFM 升级后输出目录变为 `net8.0-windows10.0.19041.0\`，启动脚本仍指向旧目录 `net8.0-windows\` 的**过期 exe**，导致整轮"滚轮无效"假象——**启动路径必须与最新输出目录一致，旧输出目录已删**。
+
+### Phase：前置区轮换动画 + 播放按钮固定（2026-09-09）
+- **需求**：滚轮上/下滑切换前置区要有滚动动画；播放/暂停按钮不随悬停展开移动（固定位置）。
+- **修复**：`MusicFrontPanel` 从外层 Grid 移回 `CapsuleBar` 第 0 列——原先 `Grid.Column=0` 落在无列定义的外层 Grid 上横跨整窗，按钮被钉在窗口右缘随展开右移（用户截图现象）。
+- **动画**：`AnimateFrontSwap` 双面板轮换——旧内容沿滚动方向滑出淡出、新内容自反向滑入（位移 24px / 260ms CubicEase）;从当前值续接实现中断折返;`_frontSeq` 代数作废旧轮换;收尾定时器固化终值。展开态接管时只复位位移,显隐交给收起流程。
+- **验证**：PostMessage 上/下滚轮 + PrintWindow 连续抓帧,两个方向中间帧均可见推挤过渡 ✓;小胶囊/展开态按钮 x 坐标一致(固定) ✓;构建 0 警 0 错;App 测试 16/16 ✓。
+
 ### 文档同步状态
 - 原 HANDOFF_ZCODE.md 最后一次同步声明"README/ARCHITECTURE/HANDOFF 已同步到 v2 抓屏方案"——**该状态已被 v3/v4 取代**，勿再据此改码；本文档（DesktopHub.md）为当前唯一入口。
 
@@ -356,9 +386,9 @@ v1 普通窗口 + blurbehind（死黑 + 白边）→ v2 layered + 抓屏伪模�
 | 工程 | 内容 | 数量 |
 |---|---|---|
 | `tests/DesktopHub.Core.Tests`（xUnit） | 分类引擎、配置读写（含外观字段 ThemeMode/AcrylicEnabled/AcrylicOpacity 往返 + 旧配置向后兼容）、分组排序（`IconGrouper`）、.lnk 解析、48px 图标提取冒烟、recent.json 读写、真实桌面枚举冒烟（Shell COM 须 STA：`ShellAndConfigTests.RunInSta`）、TempAppData 隔离 | 25 |
-| `tests/DesktopHub.App.Tests`（xUnit） | 表情球引擎冒烟（注册表完整性、未知 ID 回退、几何数据、600 帧管线稳定性、快速切换、自旋/弹跳、偏航收敛、眨眼开合度）+ `EmotionBallFacingTests`（双眼回正 ×2）+ `PillLayoutAlignmentTests`（球贴左 + 时间居中）+ `PillVisualSnapshotTests`（变换顺序回归）；引用 WPF 工程但只测无 WPF 依赖的纯逻辑与投影计算 | 15 |
+| `tests/DesktopHub.App.Tests`（xUnit） | SMTC 系统媒体检测冒烟 + 表情球引擎冒烟（注册表完整性、未知 ID 回退、几何数据、600 帧管线稳定性、快速切换、自旋/弹跳、偏航收敛、眨眼开合度）+ `EmotionBallFacingTests`（双眼回正 ×2）+ `PillLayoutAlignmentTests`（球贴左 + 时间居中）+ `PillVisualSnapshotTests`（变换顺序回归）；引用 WPF 工程但只测无 WPF 依赖的纯逻辑与投影计算 | 16 |
 
-合计 **40**（截至 2026-09-05 文档记录）。构建基线：0 警告 0 错误。
+合计 **41**（截至 2026-09-05 文档记录）。构建基线：0 警告 0 错误。
 
 ## 13. 代码核对发现与技术债清理（2026-08-31 复审）
 

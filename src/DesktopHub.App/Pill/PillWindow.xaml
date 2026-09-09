@@ -14,6 +14,8 @@
         Width="240" Height="58"
         ResizeMode="NoResize">
     <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+
         <!-- 玻璃拟态自动隐藏滚动条:默认透明,悬停面板淡入、离开淡出;滑块随悬停/拖拽提亮 -->
         <Style x:Key="GlassScrollBar" TargetType="ScrollBar">
             <Setter Property="Width" Value="4"/>
@@ -134,9 +136,12 @@
 
                 <!-- 小胶囊态:表情球 + 当前时间。
                      整列透明背景扩大可点击区。布局:球贴左(灵动岛式),时间相对整窗水平居中
-                     (TextBlock HorizontalAlignment=Center 于 240px → 中心 120,而非右侧剩余空间居中)。 -->
-                <Grid x:Name="SmallPanel" Grid.Column="0" Background="Transparent"
+                     (TextBlock HorizontalAlignment=Center 于 240px → 中心 120,而非右侧剩余空间居中)。
+-->                <Grid x:Name="SmallPanel" Grid.Column="0" Background="Transparent"
                       Cursor="Hand" MouseLeftButtonDown="Capsule_MouseDown">
+                    <Grid.RenderTransform>
+                        <TranslateTransform x:Name="SmallShift"/>
+                    </Grid.RenderTransform>
                     <!-- 表情球:贴左(留 4px 与左弧协调),点击自旋一圈(阻止冒泡,不触发胶囊展开) -->
                     <Border Width="44" Height="44" Margin="4,0,0,0"
                             HorizontalAlignment="Left" VerticalAlignment="Center"
@@ -195,9 +200,99 @@
                         </TextBlock.Style>
                     </TextBlock>
                 </StackPanel>
+
+                <!-- 音乐前置区:滚轮上滑/播放开始时替换 前置区(表情球+时间),滚轮下滑切回。
+                     必须留在 CapsuleBar 第 0 列(固定 240 宽):播放/暂停锚在胶囊右缘,
+                     悬停展开"最近打开"时不随窗口拉宽而右移;放外层 Grid 会横跨全窗宽,按钮跟着跑。
+                     有会话:圆形封面(40) + 歌名/歌手 + 播放/暂停;无会话:音符 + 「暂无音乐」占位。
+                     MusicShift 供滚轮上/下滑的轮换动画做竖直位移。 -->
+                <Grid x:Name="MusicFrontPanel" Grid.Column="0" Background="Transparent"
+                      Visibility="Collapsed" Opacity="0" Cursor="Hand">
+                    <Grid.RenderTransform>
+                        <TranslateTransform x:Name="MusicShift"/>
+                    </Grid.RenderTransform>
+                    <!-- 有媒体会话:封面 + 歌名/歌手 + 播放/暂停(歌名右侧) -->
+                    <Grid Margin="7,0,6,0" Visibility="{Binding HasNowPlaying, Converter={StaticResource BoolToVis}}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- 专辑封面:40 圆形(与表情球同位),无封面显示音符。
+                             Image + 椭圆 Clip:ImageBrush(Freezable)上的绑定在属性由 null 变非 null 时不更新,勿用。 -->
+                        <Grid Grid.Column="0" Width="40" Height="40" VerticalAlignment="Center">
+                            <Path Style="{StaticResource PillIcon}" Data="{StaticResource IconMusic}"
+                                  Width="18" Height="18" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            <Image Source="{Binding NowPlayingArtwork}" Stretch="UniformToFill"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <Image.Clip>
+                                    <EllipseGeometry Center="20,20" RadiusX="20" RadiusY="20"/>
+                                </Image.Clip>
+                            </Image>
+                            <Ellipse Stroke="{DynamicResource CapsuleStrokeBrush}" StrokeThickness="1"/>
+                        </Grid>
+
+                        <StackPanel Grid.Column="1" Margin="9,0,6,0" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding NowPlayingTitle}" FontSize="12" FontWeight="Medium"
+                                       Foreground="{DynamicResource PrimaryTextBrush}"
+                                       TextTrimming="CharacterEllipsis"/>
+                            <TextBlock Text="{Binding NowPlayingArtist}" FontSize="10.5"
+                                       Foreground="{DynamicResource SecondaryTextBrush}"
+                                       TextTrimming="CharacterEllipsis" Margin="0,3,0,0"/>
+                        </StackPanel>
+
+                        <Button Grid.Column="2" Style="{StaticResource PillIconButton}" VerticalAlignment="Center"
+                                Command="{Binding TogglePlayPauseCommand}" ToolTip="播放/暂停">
+                            <Grid>
+                                <Path Data="{StaticResource IconPause}">
+                                    <Path.Style>
+                                        <Style TargetType="Path" BasedOn="{StaticResource PillIconFill}">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsMusicPlaying}" Value="False">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Path.Style>
+                                </Path>
+                                <Path Data="{StaticResource IconPlay}">
+                                    <Path.Style>
+                                        <Style TargetType="Path" BasedOn="{StaticResource PillIconFill}">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsMusicPlaying}" Value="False">
+                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Path.Style>
+                                </Path>
+                            </Grid>
+                        </Button>
+                    </Grid>
+
+                    <!-- 无媒体会话:暂无音乐占位 -->
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="14,0,0,0">
+                        <StackPanel.Style>
+                            <Style TargetType="StackPanel">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding HasNowPlaying}" Value="False">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </StackPanel.Style>
+                        <Path Style="{StaticResource PillIcon}" Data="{StaticResource IconMusic}"
+                              Width="16" Height="16" VerticalAlignment="Center"/>
+                        <TextBlock Text="暂无音乐" FontSize="12" Margin="10,0,0,0"
+                                   Foreground="{DynamicResource SecondaryTextBrush}" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Grid>
             </Grid>
 
-            <!-- 展开态:按分类分组的桌面图标面板(固定尺寸覆盖层,动画期间内容不重排) -->
+                <!-- 展开态:按分类分组的桌面图标面板(固定尺寸覆盖层,动画期间内容不重排) -->
             <Grid x:Name="ExpandedPanel" Width="600" Height="552"
                   HorizontalAlignment="Left" VerticalAlignment="Top"
                   Margin="20,16,20,12" Opacity="0" Visibility="Hidden">
@@ -211,13 +306,54 @@
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
-                <!-- 头部:标题 + 刷新 / 隐藏图标 -->
+                <!-- 头部:标题 + 刷新 / 隐藏图标 / 设置(SVG 矢量图标按钮,标签转为 ToolTip) -->
                 <DockPanel Grid.Row="0" LastChildFill="False">
-                    <TextBlock Text="DesktopHub" Foreground="#FFFFFF" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                    <Button x:Name="ToggleIconsButton" DockPanel.Dock="Right" Command="{Binding ToggleIconsCommand}"
-                            Style="{StaticResource PillButton}" Content="{Binding ToggleLabel}" FontSize="11" Padding="10,4"/>
-                    <Button x:Name="RefreshButton" DockPanel.Dock="Right" Command="{Binding RefreshCommand}"
-                            Style="{StaticResource PillButton}" Content="{Binding RefreshLabel}" FontSize="11" Padding="10,4" Margin="0,0,8,0"/>
+                    <TextBlock Text="DesktopHub" Foreground="{DynamicResource PrimaryTextBrush}" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Button x:Name="RefreshButton" Style="{StaticResource PillIconButton}" Command="{Binding RefreshCommand}"
+                                ToolTip="{Binding RefreshLabel}" Click="RefreshButton_Click">
+                            <Path x:Name="RefreshIcon" Style="{StaticResource PillIcon}" Data="{StaticResource IconRefresh}"
+                                  RenderTransformOrigin="0.5,0.5">
+                                <Path.RenderTransform>
+                                    <RotateTransform/>
+                                </Path.RenderTransform>
+                            </Path>
+                        </Button>
+                        <Button x:Name="ToggleIconsButton" Style="{StaticResource PillIconButton}" Command="{Binding ToggleIconsCommand}"
+                                ToolTip="{Binding ToggleLabel}" Margin="2,0,0,0">
+                            <Grid>
+                                <!-- 桌面图标可见:睁眼 -->
+                                <Path Data="{StaticResource IconEye}">
+                                    <Path.Style>
+                                        <Style TargetType="Path" BasedOn="{StaticResource PillIcon}">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding DesktopIconsHidden}" Value="True">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Path.Style>
+                                </Path>
+                                <!-- 桌面图标已隐藏:闭眼斜杠 -->
+                                <Path Data="{StaticResource IconEyeOff}">
+                                    <Path.Style>
+                                        <Style TargetType="Path" BasedOn="{StaticResource PillIcon}">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding DesktopIconsHidden}" Value="True">
+                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Path.Style>
+                                </Path>
+                            </Grid>
+                        </Button>
+                        <Button Style="{StaticResource PillIconButton}" Command="{Binding ShowSettingsCommand}"
+                                ToolTip="设置" Margin="2,0,0,0" Click="SettingsButton_Click">
+                            <Path Style="{StaticResource PillIcon}" Data="{StaticResource IconSettings}"/>
+                        </Button>
+                    </StackPanel>
                 </DockPanel>
 
                 <!-- 分组图标列表 -->
