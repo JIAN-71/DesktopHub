@@ -10,6 +10,9 @@ publish/
 *.user
 *.suo
 
+# Obsidian 本地库状态(界面布局/插件开关等,随使用频繁变动)
+.obsidian/
+
 # Local working / diagnostics
 .workbuddy/
 *.log
