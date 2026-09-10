@@ -255,6 +255,8 @@
                             <CheckBox Content="开机自动启动" IsChecked="{Binding StartWithWindows}"/>
                             <CheckBox Content="隐藏桌面图标(面板将成为你的桌面入口,随时可再点一次恢复)"
                                       Margin="0,10,0,0" IsChecked="{Binding HideDesktopIcons}"/>
+                            <CheckBox Content="顶置胶囊岛(始终保持在其他窗口之上;关闭后可被遮挡)"
+                                      Margin="0,10,0,0" IsChecked="{Binding PillTopmost}"/>
                         </StackPanel>
                     </Border>
                 </StackPanel>

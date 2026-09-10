@@ -33,6 +33,7 @@ public partial class PillWindow : Window
     private enum PillState { Small, Recent, Expanded }
 
     private readonly PillViewModel _viewModel;
+    private readonly DesktopController _controller;
     private readonly DispatcherTimer _collapseTimer;
     private readonly DispatcherTimer _clockTimer;
     private Rect _workArea;
@@ -47,14 +48,23 @@ public partial class PillWindow : Window
         InitializeComponent();
         var mediaSessions = new MediaSessionService(new WpfUiDispatcher(Dispatcher));
         _viewModel = new PillViewModel(controller, showSettingsRequested, mediaSessions);
+        _controller = controller;
         DataContext = _viewModel;
         _ = StartMediaSessionsAsync(mediaSessions);
+
+        // 顶置按配置(设置-通用):启动即应用;「保存并应用」经 StatusChanged 实时切换
+        ApplyPillTopmost();
+        _controller.StatusChanged += ApplyPillTopmost;
 
         // 自动切入:检测到音乐开始播放(暂停→播放 边沿)时,前置区自动切换为音乐模式
         mediaSessions.NowPlayingChanged += OnNowPlayingForAutoSwitch;
 
         // 窗口关闭时释放事件订阅(媒体服务随进程生命周期常驻)
-        Closed += (_, _) => _viewModel.Dispose();
+        Closed += (_, _) =>
+        {
+            _controller.StatusChanged -= ApplyPillTopmost;
+            _viewModel.Dispose();
+        };
 
         // WPF Window 即便 WindowStyle=None,部分 Win 版本/驱动仍会保留 Win32 WS_BORDER / WS_THICKFRAME
         // 系统样式,DWM 据此沿窗口外侧画 1px 矩形外框。XAML 已设 BorderBrush={x:Null} + BorderThickness=0
@@ -190,6 +200,9 @@ public partial class PillWindow : Window
         BeginAnimation(LeftProperty, leftAnim);
         BeginAnimation(TopProperty, topAnim);
     }
+
+    /// <summary>按配置切换顶置(设置-通用「顶置胶囊岛」);取消顶置后胶囊可被其他窗口遮挡。</summary>
+    private void ApplyPillTopmost() => Topmost = _controller.Config.PillTopmost;
 
     /// <summary>按当前圆角裁剪内容,保证图标不超出胶囊圆角轮廓(复用几何实例,零分配)。</summary>
     private void UpdateClip()

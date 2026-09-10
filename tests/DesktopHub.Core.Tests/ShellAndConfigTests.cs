@@ -22,6 +22,7 @@ public class ShellAndConfigTests : TempAppDataTest
             ThemeMode = "Dark",
             AcrylicEnabled = false,
             AcrylicOpacity = 0.65,
+            PillTopmost = false,
         };
         store.Save(config);
 
@@ -33,6 +34,7 @@ public class ShellAndConfigTests : TempAppDataTest
         Assert.Equal("Dark", loaded.ThemeMode);
         Assert.False(loaded.AcrylicEnabled);
         Assert.Equal(0.65, loaded.AcrylicOpacity, precision: 3);
+        Assert.False(loaded.PillTopmost);
     }
 
     [Fact]
@@ -47,6 +49,7 @@ public class ShellAndConfigTests : TempAppDataTest
         Assert.Equal("System", config.ThemeMode);
         Assert.True(config.AcrylicEnabled);
         Assert.Equal(0.40, config.AcrylicOpacity, precision: 3);
+        Assert.True(config.PillTopmost); // 旧配置无此字段:默认顶置(保持旧行为)
         // 内置分类补齐逻辑不受影响
         Assert.Contains(config.Categories, c => c.Name == "游戏");
     }

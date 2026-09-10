@@ -8,7 +8,6 @@
         Background="Transparent"
         BorderBrush="{x:Null}"
         BorderThickness="0"
-        Topmost="True"
         ShowInTaskbar="False"
         ShowActivated="False"
         Width="240" Height="58"

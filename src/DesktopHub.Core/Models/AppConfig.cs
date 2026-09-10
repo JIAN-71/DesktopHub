@@ -24,6 +24,9 @@ public sealed class AppConfig
 
     /// <summary>亚克力 tint 不透明度,范围 [0,1](设置页以 0~100% 展示)。</summary>
     public double AcrylicOpacity { get; set; } = 0.40;
+
+    /// <summary>胶囊岛是否顶置(Topmost)。关闭后可被其他窗口遮挡,仍可经托盘/设置唤回。</summary>
+    public bool PillTopmost { get; set; } = true;
 }
 
 /// <summary>分类后待展示的桌面图标。</summary>

@@ -54,6 +54,7 @@
 - **一键隐藏桌面图标**：胶囊面板与托盘菜单都有开关，调用系统"显示桌面图标"切换（等效桌面右键 → 查看），立即生效、随时切回。
 - **自动刷新**：监听用户/公共桌面文件变化，图标增删后面板自动更新；也可手动刷新。
 - **托盘常驻**：重新扫描 / 隐藏桌面图标 / 设置 / 退出；开机自启（HKCU Run 键）。
+- **通用设置（保存并应用）**：开机自启、隐藏桌面图标、**顶置胶囊岛**（`AppConfig.PillTopmost`，默认开；关闭后胶囊可被其他窗口遮挡，仍可经设置/托盘唤回。启动即按配置应用，保存后经 `StatusChanged` 实时切换 `Window.Topmost`）。
 - **音乐前置区**：悬停胶囊展开 [前置区 | 最近打开条]——存在媒体会话时前置区(表情球+时间的位置)切换为 **圆形专辑封面**(44) + 歌名/歌手 + 播放⇄暂停按钮(右侧)；无会话保持表情球+时间；鼠标离开收回小胶囊。
 - **外观设置（设置页即时生效）**：主题三态（跟随系统 / 深色 / 浅色，启动时按配置解析）、亚克力开关、不透明度滑杆（0~100%，拖动实时生效、停止 500ms 后落盘）；三项即时生效并自动保存，退出时兜底再固化一次。设置窗口自身也随主题换色（DynamicResource）。
 - **主题跟随**：`ThemeManager` 跟随系统深浅色（注册表 `AppsUseLightTheme`），亚克力着色同步切换；`AcrylicEnabled` / `AcrylicOpacity` 由设置状态驱动、改动即广播重设（详见 §10）。
@@ -140,7 +141,7 @@ cd /d/Project/DesktopHub
 | `StaThreadRunner` | 专用 STA 后台线程（`BlockingCollection` 队列串行），Shell COM 交互集中于此 |
 | `UiDispatcher`（WpfUiDispatcher） | `IUiDispatcher` 实现，业务层不再直接依赖 `Application.Dispatcher` |
 | `ScreenInterop` | 鼠标所在显示器工作区（DIP 换算），用于胶囊窗定位 |
-| `SettingsWindow` + `SettingsViewModel` | **侧边栏分区设置页**：个性化（主题三态/亚克力开关/不透明度，改动即生效即落盘）、通用（自启/隐藏图标）、分组规则（DataGrid）；侧边栏为 ListBox 分区导航（Segoe MDL2 图标 + 选中高亮），内容面板经 `IndexVisibilityConverter` 切换；保存应用与校验警告/成功提示经事件桥接弹窗。窗口配色随主题经 DynamicResource 切换 |
+| `SettingsWindow` + `SettingsViewModel` | **侧边栏分区设置页**：个性化（主题三态/亚克力开关/不透明度，改动即生效即落盘）、通用（自启/隐藏图标/顶置胶囊岛）、分组规则（DataGrid）；侧边栏为 ListBox 分区导航（Segoe MDL2 图标 + 选中高亮），内容面板经 `IndexVisibilityConverter` 切换；保存应用与校验警告/成功提示经事件桥接弹窗。窗口配色随主题经 DynamicResource 切换 |
 | `TrayIconProvider` | 系统托盘图标与右键菜单（Hardcodet.NotifyIcon.Wpf） |
 | `DesktopIconVM` | 面板图标 VM（名称/分类/图标/启动动作） |
 | `Helpers/AcrylicHelper` | 亚克力背景 + 圆角裁剪 + 去系统边框（当前方案，详见 §10） |
@@ -377,6 +378,11 @@ v1 普通窗口 + blurbehind（死黑 + 白边）→ v2 layered + 抓屏伪模�
 - **修复**：`MusicFrontPanel` 从外层 Grid 移回 `CapsuleBar` 第 0 列——原先 `Grid.Column=0` 落在无列定义的外层 Grid 上横跨整窗，按钮被钉在窗口右缘随展开右移（用户截图现象）。
 - **动画**：`AnimateFrontSwap` 双面板轮换——旧内容沿滚动方向滑出淡出、新内容自反向滑入（位移 24px / 260ms CubicEase）;从当前值续接实现中断折返;`_frontSeq` 代数作废旧轮换;收尾定时器固化终值。展开态接管时只复位位移,显隐交给收起流程。
 - **验证**：PostMessage 上/下滚轮 + PrintWindow 连续抓帧,两个方向中间帧均可见推挤过渡 ✓;小胶囊/展开态按钮 x 坐标一致(固定) ✓;构建 0 警 0 错;App 测试 16/16 ✓。
+
+### Phase：通用设置新增「顶置胶囊岛」（2026-09-09）
+- **需求**：设置-通用增加"是否顶置胶囊岛"开关。
+- **实现**：`AppConfig.PillTopmost`(默认 true,旧配置缺字段即默认顶置,行为不变);设置页通用分区新增拨动开关,随该分区既有语义走「保存并应用」;`PillWindow` 移除 XAML 硬编码 `Topmost="True"`,改为 `ApplyPillTopmost()` 读配置——构造时应用一次,并订阅 `StatusChanged`(ApplyConfig 后触发)实时切换,关闭时退订。
+- **验证**(`tools/_topmost-e2e.ps1`):UIA 展开胶囊→进设置→切通用→Toggle 开关→保存;实测默认 `WS_EX_TOPMOST`=True → 关开关后实时摘除 → config.json `pillTopmost:false` 落盘;重启后启动即不顶置;再开回 True 双向均通 ✓;Core 测试 25/25、App 16/16 ✓。
 
 ### 文档同步状态
 - 原 HANDOFF_ZCODE.md 最后一次同步声明"README/ARCHITECTURE/HANDOFF 已同步到 v2 抓屏方案"——**该状态已被 v3/v4 取代**，勿再据此改码；本文档（DesktopHub.md）为当前唯一入口。

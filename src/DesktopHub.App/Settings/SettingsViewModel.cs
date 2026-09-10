@@ -20,7 +20,7 @@ public sealed class RuleRow
 
 /// <summary>
 /// 设置窗口 ViewModel:
-///   - 通用项(开机自启/隐藏图标)与分组规则走「保存并应用」;
+///   - 通用项(开机自启/隐藏图标/顶置胶囊岛)与分组规则走「保存并应用」;
 ///   - 外观项(主题模式/亚克力开关/不透明度)改动即经 <see cref="ThemeManager"/> 实时生效并落盘,
 ///     不透明度滑杆拖动期间连续生效、停止 500ms 后才写配置(避免逐 tick 写盘);
 ///   - 校验失败触发 <see cref="Warned"/>,成功反馈触发 <see cref="Notified"/>,由 code-behind 弹窗。
@@ -36,6 +36,10 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     [ObservableProperty]
     private bool _hideDesktopIcons;
+
+    /// <summary>胶囊岛是否顶置(取消后可被其他窗口遮挡)。</summary>
+    [ObservableProperty]
+    private bool _pillTopmost;
 
     /// <summary>外观模式:0 跟随系统 / 1 深色 / 2 浅色(与 <see cref="ThemeMode"/> 枚举值一致)。</summary>
     [ObservableProperty]
@@ -89,6 +93,7 @@ public sealed partial class SettingsViewModel : ObservableObject
             var config = _controller.Config;
             StartWithWindows = config.StartWithWindows;
             HideDesktopIcons = _controller.AreDesktopIconsHidden();
+            PillTopmost = config.PillTopmost;
             ThemeModeIndex = (int)ThemeManager.ParseMode(config.ThemeMode);
             ThemeManager.AcrylicEnabled = config.AcrylicEnabled; // 与配置对齐(值未变时 setter 不广播)
             ThemeManager.AcrylicOpacity = config.AcrylicOpacity;
@@ -160,6 +165,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         _controller.ApplyConfig(new AppConfig
         {
             StartWithWindows = StartWithWindows,
+            PillTopmost = PillTopmost,
             Categories = Rules
                 .Where(r => !string.IsNullOrWhiteSpace(r.Name))
                 .Select(r => new CategoryDefinition
